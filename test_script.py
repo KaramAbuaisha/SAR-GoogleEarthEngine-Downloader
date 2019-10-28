@@ -6,7 +6,7 @@ from geetools import batch
 ee.Initialize()
 
 roi = ee.Geometry.Rectangle([-133, 71, -155, 74]);
-col = ee.ImageCollection('COPERNICUS/S1_GRD').filterBounds(roi).filterDate('2019-07-01','2019-10-31').filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+col = ee.ImageCollection('COPERNICUS/S1_GRD').filterBounds(roi).filterDate('2019-07-01','2019-10-31').filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'HH')).filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'HV')).filter(ee.Filter.eq('instrumentMode', 'EW'))
 
 img_list = col.toList(col.size())
 n=0
