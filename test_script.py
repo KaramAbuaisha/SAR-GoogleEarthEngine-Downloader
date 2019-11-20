@@ -1,38 +1,40 @@
 # Import the Earth Engine Python Package
 import ee
-from geetools import batch
+import wget
+import threading
 
 # Initialize the Earth Engine object, using the authentication credentials.
 ee.Initialize()
-
-roi = ee.Geometry.Rectangle([-133, 71, -155, 74]);
-col = ee.ImageCollection('COPERNICUS/S1_GRD').filterBounds(roi).filterDate('2019-07-01','2019-10-31').filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'HH')).filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'HV')).filter(ee.Filter.eq('instrumentMode', 'EW'))
-
+roi = ee.Geometry.Polygon([[-150.60058593749994, 74.81042419434962],[-146.11816406249997, 74.81042419434962],[-146.11816406249997, 75.74812548842993],[-150.60058593749994, 75.74812548842993],[-150.60058593749994, 74.81042419434962]])
+col = ee.ImageCollection('COPERNICUS/S1_GRD').filterBounds(roi).filterDate('2019-11-06','2019-11-09').filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'HH')).filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'HV')).filter(ee.Filter.eq('instrumentMode', 'EW'))
 img_list = col.toList(col.size())
-n=0
 
-img = ee.Image(img_list.get(n))
-img = img.toFloat()
-task=ee.batch.Export.image.toDrive(image=img, folder='SAR', maxPixels=10**9)
-task.start()
+scale = 1024
+# Change scale to ~128? 
+# I think that may be what we want for images scaled down by 4 in each dimension, since it is about 4000x4000
+# The minimum scale for downloading like this is ~44.4
 
-# while True:
-#     try:
-#         img = ee.Image(img_list.get(n))
+# If you want to download larger scenes, see code below, it downloads to your google drive (until it's full)
+# Problem with it is it only downloads 1 tif file per scene? not sure why. 
+# for i in range(img_list.size().getInfo()):
+#     img = ee.Image(img_list.get(i))
+#     img = img.toFloat() # converts to float32 from double, necessary for drive download
+#     task=ee.batch.Export.image.toDrive(image=img, folder='SAR', scale=scale, maxPixels=10**9)
+#     task.start()
 
-#         # convert data type
-#         img = img.toFloat()
+# This code downloads one file at a time
+# for i in range(img_list.size().getInfo()):
+#     img = ee.Image(img_list.get(i))
+#     img = img.toFloat() # converts to float32 from double
+#     wget.download(img.getDownloadURL(params={'scale': scale})) 
 
-#         task = ee.batch.Export.image.toDrive(image=img, folder='SAR', maxPixels=10**9)
-#         task.start()
-#         tasklist.append(task)
-#         n += 1
-#     except Exception as e:
-#         error = str(e).split(':')
-#         if error[0] == 'List.get':
-#             break
-#         else:
-#             raise e
+# This code downloads in parallel using threading, it is faster
+def download(url):
+    wget.download(url)
+    return
 
-# img = ee.Image(img_list.get(n))
-# img.getDownloadURL(params={'scale':640})
+for i in range(img_list.size().getInfo()):
+    img = ee.Image(img_list.get(i))
+#     img = img.toFloat() # converts to float32 from double
+    download_thread = threading.Thread(target=download, args=(img.getDownloadURL(params={'scale': scale}),))
+    download_thread.start()
